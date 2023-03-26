@@ -77,7 +77,7 @@ def get_k_layer_name(indx):
 #4先前明明正常，为什么又不行了。
 #2023-03-25 17:11 3正常
 #
-pre_index = 4
+pre_index = 2
 
 #torch model的所有卷积层
 all_torch_conv_layer_names = [k[0] for k in list(model.named_modules()) if isinstance(k[1], torch.nn.modules.conv.Conv2d)]
@@ -117,53 +117,13 @@ hook_layer = get_member(model,s)
 #pytorch
 hook_layer.register_forward_hook(get_layer_output) #添加钩子
 model(x0)
-torch_out = torch_inter_layer_out
 
-#keras
-from keras import backend as K
-keras_x0 = K.constant(x0.permute(0,2,3,1).numpy())  #转到keras的输入
-keras_x0 = x0.permute(0,2,3,1).numpy()
-# print(type(keras_x0))
-# print(keras_x0.shape)
-from keras.models import Model
-layer_name = get_k_layer_name(layer_index)  #keras第
-intermediate_layer_model = Model(inputs=keras_model.input, outputs=keras_model.get_layer(layer_name).output)
-intermediate_layer_model.set_weights(keras_model.get_weights()[:layer_index+2])
-# keras_output = intermediate_layer_model.predict(keras_x0)
-# # print("keras卷积层输出：",type(keras_output))
-# keras_output_torch_tensor = torch.Tensor(keras_output).permute(0, 3, 1, 2)
-
-# #比较二者
-# # assert torch_out.shape == keras_output_torch_tensor.shape
-# # print(torch_out == keras_output_torch_tensor)
-# print("torch模型和keras模型第index:{}层输出shape：".format(pre_index),torch_out.shape, keras_output_torch_tensor.shape)
-# print("torch模型和keras模型第index:{}层输出截取：".format(pre_index),torch_out[0,0,:3,:3], keras_output_torch_tensor[0,0,:3,:3],sep="\n")
-
-a=2
-#torch的conv2d是包含偏置的。
-#kerass的conv2d也包含偏置。后面的lambda函数是激活函数
-#第 4层出错（从0计数）
-#17:18 2023/3/25 torch的第4层输入时正确的（即使第3层输出，大头-0.198
-#17:20 2023/3/25 torch的第4层权重卷积核大头-0.0237 0.0469
-#17:22 2023/3/25 临时keras model即intermediate_layer_model确实输出是第3个卷积层的输出
-#17:26 2023/3/25 临时keras model的卷积核参数和torch model的相同-0.02365266,  0.04694267
-#17:27 2023/3/25 临时keras model的卷积层bias参数为-0.00071564,  0.03814552,  0.00582773
-#17:29 2023/3/25 不对。为什么torch的卷积层参数：hook_layer.weight没有偏置参数。但是keras model.layers[-1].get_weights()会返回两个
-#17:33 2023/3/25 hook_layer也有bias参数，值也为-0.0007,  0.0381,  0.0058，那就不懂为什么了
-#17:42 2023/3/25 用以下代码测试，发现torch功能应该是正常。应该是keras model内部功能不正常
 import torch.nn as nn
 conv2d = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
 conv2d.weight = hook_layer.weight
 conv2d.bias = hook_layer.bias
 print("torch单层模型结果", conv2d(torch_inter_layer_in[0])[0,0,:3,:3])
-#18:05 2023/3/25 将x0范围在0-1之间。还是不行
-#18:06 2023/3/25 predict即使重复执行结果也不同。不知道和这个有没有关系
-#18:11 2023/3/25 改batch_size为1还是不行，多次执行结果不同的毛病也仍然存在
-#TODO：要不定义一个keras单层模型看看功能是否正常
-#TODO: predict里有一个statards过程，可能和那个有关。->看看之前功能正常的时候stadard前后有没有变化->也不对呀。不管怎样都是要standard的。要错先前就错了
 
-#21:33 2023/3/25 定义一个单层的keras 卷积模型，怎么既和上面intermediate_layer_model不同，又可torch单层模型不同？？
-#定义一个keras单卷积层试试
 from keras.models import Sequential
 from keras.layers import Conv2D,Input
 import tensorflow as tf
@@ -175,12 +135,3 @@ conv = Conv2D(64, kernel_size=3, padding='same')(inputs)
 conv2d_model = Model(inputs=inputs, outputs=conv)
 conv2d_model.set_weights(keras_model.get_weights()[2:4])
 print("keras单层模型结果",conv2d_model.predict(torch_inter_layer_in[0].permute(0,2,3,1).detach().numpy())[0,:3,:3,0])
-
-#21:48 2023/3/25 上述代码中如果整体重复执行，每执行一次结果会不一样。但是如果只重复执行最后一步predict，结果会保持不变。说明
-# 1 可能有参数没初始化
-# 2 可能有每次定义的时候都会加上某个结构
-#TODO:重启程序，看两次intermediate_layer_model执行结果。有没有差别->不是
-#TODO：看predict之前有没有可能没有初始化还，get_weights为空->不是
-
-a=4
-
