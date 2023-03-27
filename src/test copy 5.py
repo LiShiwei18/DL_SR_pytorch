@@ -1,5 +1,5 @@
-'''手动读取.h5文件赋值给torch'''
-'''2023-03-26 13:35'''
+'''尝试看整个模型了'''
+'''2023-03-26 22:25'''
 import keras
 from models.DFCAN16 import DFCAN as keras_DFCAN
 from model.DFCAN import DFCAN as torch_DFCAN
@@ -48,97 +48,21 @@ torch.manual_seed(123)
 x0 = torch.rand(1, 1, 502, 502)
 
 #定义用于pytorch打印的hook函数
-torch_inter_layer_out = None
-torch_inter_layer_in = None
-def get_layer_output(layer, input, output):
-    global torch_inter_layer_out
-    torch_inter_layer_out = output
-    global torch_inter_layer_in
-    torch_inter_layer_in = input
-
-def get_k_layer_name(indx):
-    #indx: 所有的卷积层和激活层一共166个，返回第indx/166个
-    #获取keras_model所有层。实际上就是83个卷积层
-    trainable_layer_names = [layer.name.split(r"/")[0] for layer in keras_model.trainable_weights]
-    from collections import OrderedDict
-    ordered_dict = OrderedDict.fromkeys(trainable_layer_names)
-    set_trainable_layer_names = list(ordered_dict.keys())
-    # indx 为偶数返回卷积层,为奇数返回激活层
-    ## 注意这里很不靠谱。只使用与前面3层卷积
-    if indx % 2 == 0:
-        return set_trainable_layer_names[indx//2]
-    else:
-        current_layer_name = set_trainable_layer_names[indx//2]
-        for i, k in enumerate(keras_model.layers):
-            if k.name == current_layer_name:
-                next_layer_name = keras_model.layers[i+1].name
-        return next_layer_name
-
-#获取torch model要插入hook的hook_layer
-#4先前明明正常，为什么又不行了。
-#2023-03-25 17:11 3正常
-#
-pre_index = 9
-
-#torch model的所有卷积层
-all_torch_conv_layer_names = [k[0] for k in list(torch_model.named_modules()) if isinstance(k[1], torch.nn.modules.conv.Conv2d)]
-#torch model的所有激活层（其实少一层）
-all_torch_activ_layer_names = [list(torch_model.named_modules())[[m[0] for m in torch_model.named_modules()].index(k) + 1][0] for k in all_torch_conv_layer_names[:-1]]
-
-import re
-s = all_torch_conv_layer_names[pre_index//2] if pre_index%2==0 else all_torch_activ_layer_names[pre_index//2]
-s = re.sub(r'\.(\d+)\.', r'[\1].', s)
-s = re.sub(r'\.(\d+)$', r'[\1]', s)
-# s = re.sub(r'\.[^.]*$', '', s)
-print(s)
-
-def get_member(cls, string):
-    # 将输入字符串按照`.`分割成列表
-    attribute_list = string.split(".")
-    
-    # 定义变量result，初始值为A
-    result = cls
-    
-    # 遍历列表，访问对应的成员
-    for attribute_name in attribute_list:
-        if "[" in attribute_name and "]" in attribute_name:
-            # 如果元素是以[数字]结尾的形式，就将数字提取出来，并使用getattr()函数访问result的对应成员
-            index = int(attribute_name[attribute_name.index("[")+1:attribute_name.index("]")])
-            attribute_name = attribute_name[:attribute_name.index("[")]
-            result = getattr(result, attribute_name)[index]
-        else:
-            # 否则，直接使用getattr()函数访问result的对应成员
-            result = getattr(result, attribute_name)
-    return result
-
-# 检查第layer_index层
-layer_index = pre_index   
-hook_layer = get_member(torch_model,s)
-# hook_layer = model.RGs[0].RCABs[0].conv_gelu1[0]
-#pytorch
-hook_layer.register_forward_hook(get_layer_output) #添加钩子
-torch_model(x0)
-torch_out = torch_inter_layer_out
+torch_out = torch_model(x0)
 
 #keras
 from keras import backend as K
 keras_x0 = K.constant(x0.permute(0,2,3,1).numpy())  #转到keras的输入
 keras_x0 = x0.permute(0,2,3,1).numpy()
-# print(type(keras_x0))
-# print(keras_x0.shape)
-from keras.models import Model
-layer_name = get_k_layer_name(layer_index)  #keras第
-intermediate_layer_model = Model(inputs=keras_model.input, outputs=keras_model.get_layer(layer_name).output)
-intermediate_layer_model.set_weights(keras_model.get_weights()[:layer_index+2])
-keras_output = intermediate_layer_model.predict(keras_x0)
+keras_output = keras_model.predict(keras_x0)
 # print("keras卷积层输出：",type(keras_output))
 keras_output_torch_tensor = torch.Tensor(keras_output).permute(0, 3, 1, 2)
 
 #比较二者
 # assert torch_out.shape == keras_output_torch_tensor.shape
 # print(torch_out == keras_output_torch_tensor)
-print("torch模型和keras模型第index:{}层输出shape：".format(pre_index),torch_out.shape, keras_output_torch_tensor.shape)
-print("torch模型和keras模型第index:{}层输出截取：".format(pre_index),torch_out[0,0,:3,:3], keras_output_torch_tensor[0,0,:3,:3],sep="\n")
+print("torch模型和keras模型第index:{}层输出shape：".format("last"),torch_out.shape, keras_output_torch_tensor.shape)
+print("torch模型和keras模型第index:{}层输出截取：".format("last"),torch_out[0,0,:3,:3], keras_output_torch_tensor[0,0,:3,:3],sep="\n")
 
 a=2
 #torch的conv2d是包含偏置的。
@@ -189,13 +113,8 @@ a=2
 #15:20 2023/3/26 两边都去掉了插值层后变得一样。说明是插值的原因
 #16:05 2023/3/26 把插值函数用tf的代替的。功能是正常了。但是速度有点慢
 #22:11 2023/3/26 第9层（从0开始）的时候出现错误。原因是keras在定义第9和第10的时候用的sigmoid和relu直接在Conv2D中定义的。
-#22:33 2023/3/26 在test_copy 5.py尝试全部模型输出。但是不同
-#22:40 2023/3/26 在test_copy 6.py尝试sigmoid输出，是正确的
-#22:50 2023/3/26 在test_copy 7.py尝试最后一个RGS的最后一个输出sigmoid，是正确的
-#23:00 2023/3/26 在test_copy_8.py尝试解决RGS后的第一个conv_sigmoid层，是正确的
-#23:04 2023/3/26 在test_copy_9.py尝试解决pixel_shuffle层，也是正确的
-#23:14 2023/3/26 在test_copy_10.py中尝试用输出最后一个conv_sigmoid的结果（也是整个模型的输出）。基本相同。小有差异
-#16:38 2023/3/27 在test_copy_11.py中查看卷积层的输出，很不一样。验算了一下，sigmoid功能是正常的
+
+#
 
 a=4
 

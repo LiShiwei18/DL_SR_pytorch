@@ -1,5 +1,5 @@
-'''手动读取.h5文件赋值给torch'''
-'''2023-03-26 13:35'''
+'''测试fft层是否正确工作'''
+'''2023-03-26 14:44'''
 import keras
 from models.DFCAN16 import DFCAN as keras_DFCAN
 from model.DFCAN import DFCAN as torch_DFCAN
@@ -21,8 +21,8 @@ for layer in keras_model.layers:
 #加载pytorch权重
 torch_layers_names = []
 torch_layers_params = []
-torch_model =  torch_DFCAN((n_channel))
-for name, param in torch_model.named_parameters():
+model =  torch_DFCAN((n_channel))
+for name, param in model.named_parameters():
     torch_layers_names.append(name)
     if param.requires_grad:
         # print(name, param.data)
@@ -40,7 +40,7 @@ for indx, weight in enumerate(keras_model.get_weights()):
     else:
         raise BaseException
     # to_torch_weight = torch.Tensor(weight).permute(3,2,1,0)   
-    [k for k in torch_model.named_parameters()][indx][1].data = to_torch_weight
+    [k for k in model.named_parameters()][indx][1].data = to_torch_weight
     # print(to_torch_weight[0,0,:,:])
 
 #生成固定输入
@@ -78,12 +78,12 @@ def get_k_layer_name(indx):
 #4先前明明正常，为什么又不行了。
 #2023-03-25 17:11 3正常
 #
-pre_index = 9
+pre_index = 6
 
 #torch model的所有卷积层
-all_torch_conv_layer_names = [k[0] for k in list(torch_model.named_modules()) if isinstance(k[1], torch.nn.modules.conv.Conv2d)]
+all_torch_conv_layer_names = [k[0] for k in list(model.named_modules()) if isinstance(k[1], torch.nn.modules.conv.Conv2d)]
 #torch model的所有激活层（其实少一层）
-all_torch_activ_layer_names = [list(torch_model.named_modules())[[m[0] for m in torch_model.named_modules()].index(k) + 1][0] for k in all_torch_conv_layer_names[:-1]]
+all_torch_activ_layer_names = [list(model.named_modules())[[m[0] for m in model.named_modules()].index(k) + 1][0] for k in all_torch_conv_layer_names[:-1]]
 
 import re
 s = all_torch_conv_layer_names[pre_index//2] if pre_index%2==0 else all_torch_activ_layer_names[pre_index//2]
@@ -113,11 +113,11 @@ def get_member(cls, string):
 
 # 检查第layer_index层
 layer_index = pre_index   
-hook_layer = get_member(torch_model,s)
+hook_layer = get_member(model,s)
 # hook_layer = model.RGs[0].RCABs[0].conv_gelu1[0]
 #pytorch
 hook_layer.register_forward_hook(get_layer_output) #添加钩子
-torch_model(x0)
+model(x0)
 torch_out = torch_inter_layer_out
 
 #keras
@@ -127,7 +127,7 @@ keras_x0 = x0.permute(0,2,3,1).numpy()
 # print(type(keras_x0))
 # print(keras_x0.shape)
 from keras.models import Model
-layer_name = get_k_layer_name(layer_index)  #keras第
+layer_name = "lambda_4" #傅里叶层输出
 intermediate_layer_model = Model(inputs=keras_model.input, outputs=keras_model.get_layer(layer_name).output)
 intermediate_layer_model.set_weights(keras_model.get_weights()[:layer_index+2])
 keras_output = intermediate_layer_model.predict(keras_x0)
@@ -184,18 +184,6 @@ a=2
 #TODO：看predict之前有没有可能没有初始化还，get_weights为空->不是
 #14:34 2023/3/26 将程序搬到了WSL中进行测试
 #14:34 2023/3/26 test_copy 2.py中测试了shift_2d输出。有轻微差异。
-#14:46 2023/3/26 test_copy 3.py中测试了fft2d层输出。相同（要说的话第一个元素有0001差异）。所以应该是shift_2d层有错误
-#15:18 2023/3/26 修改了torch的dfgan，和keras的结构一样。但是输出还是和先前一样没有变化。还是有一点差距
-#15:20 2023/3/26 两边都去掉了插值层后变得一样。说明是插值的原因
-#16:05 2023/3/26 把插值函数用tf的代替的。功能是正常了。但是速度有点慢
-#22:11 2023/3/26 第9层（从0开始）的时候出现错误。原因是keras在定义第9和第10的时候用的sigmoid和relu直接在Conv2D中定义的。
-#22:33 2023/3/26 在test_copy 5.py尝试全部模型输出。但是不同
-#22:40 2023/3/26 在test_copy 6.py尝试sigmoid输出，是正确的
-#22:50 2023/3/26 在test_copy 7.py尝试最后一个RGS的最后一个输出sigmoid，是正确的
-#23:00 2023/3/26 在test_copy_8.py尝试解决RGS后的第一个conv_sigmoid层，是正确的
-#23:04 2023/3/26 在test_copy_9.py尝试解决pixel_shuffle层，也是正确的
-#23:14 2023/3/26 在test_copy_10.py中尝试用输出最后一个conv_sigmoid的结果（也是整个模型的输出）。基本相同。小有差异
-#16:38 2023/3/27 在test_copy_11.py中查看卷积层的输出，很不一样。验算了一下，sigmoid功能是正常的
 
 a=4
 

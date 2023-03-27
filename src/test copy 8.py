@@ -1,5 +1,5 @@
-'''手动读取.h5文件赋值给torch'''
-'''2023-03-26 13:35'''
+'''RGs之后第1个conv_sigmoid的输出'''
+'''2023-03-26 22:55'''
 import keras
 from models.DFCAN16 import DFCAN as keras_DFCAN
 from model.DFCAN import DFCAN as torch_DFCAN
@@ -56,24 +56,6 @@ def get_layer_output(layer, input, output):
     global torch_inter_layer_in
     torch_inter_layer_in = input
 
-def get_k_layer_name(indx):
-    #indx: 所有的卷积层和激活层一共166个，返回第indx/166个
-    #获取keras_model所有层。实际上就是83个卷积层
-    trainable_layer_names = [layer.name.split(r"/")[0] for layer in keras_model.trainable_weights]
-    from collections import OrderedDict
-    ordered_dict = OrderedDict.fromkeys(trainable_layer_names)
-    set_trainable_layer_names = list(ordered_dict.keys())
-    # indx 为偶数返回卷积层,为奇数返回激活层
-    ## 注意这里很不靠谱。只使用与前面3层卷积
-    if indx % 2 == 0:
-        return set_trainable_layer_names[indx//2]
-    else:
-        current_layer_name = set_trainable_layer_names[indx//2]
-        for i, k in enumerate(keras_model.layers):
-            if k.name == current_layer_name:
-                next_layer_name = keras_model.layers[i+1].name
-        return next_layer_name
-
 #获取torch model要插入hook的hook_layer
 #4先前明明正常，为什么又不行了。
 #2023-03-25 17:11 3正常
@@ -86,7 +68,7 @@ all_torch_conv_layer_names = [k[0] for k in list(torch_model.named_modules()) if
 all_torch_activ_layer_names = [list(torch_model.named_modules())[[m[0] for m in torch_model.named_modules()].index(k) + 1][0] for k in all_torch_conv_layer_names[:-1]]
 
 import re
-s = all_torch_conv_layer_names[pre_index//2] if pre_index%2==0 else all_torch_activ_layer_names[pre_index//2]
+s = "conv_gelu.1"
 s = re.sub(r'\.(\d+)\.', r'[\1].', s)
 s = re.sub(r'\.(\d+)$', r'[\1]', s)
 # s = re.sub(r'\.[^.]*$', '', s)
@@ -127,7 +109,7 @@ keras_x0 = x0.permute(0,2,3,1).numpy()
 # print(type(keras_x0))
 # print(keras_x0.shape)
 from keras.models import Model
-layer_name = get_k_layer_name(layer_index)  #keras第
+layer_name = "lambda_82"  #keras第
 intermediate_layer_model = Model(inputs=keras_model.input, outputs=keras_model.get_layer(layer_name).output)
 intermediate_layer_model.set_weights(keras_model.get_weights()[:layer_index+2])
 keras_output = intermediate_layer_model.predict(keras_x0)
@@ -191,11 +173,7 @@ a=2
 #22:11 2023/3/26 第9层（从0开始）的时候出现错误。原因是keras在定义第9和第10的时候用的sigmoid和relu直接在Conv2D中定义的。
 #22:33 2023/3/26 在test_copy 5.py尝试全部模型输出。但是不同
 #22:40 2023/3/26 在test_copy 6.py尝试sigmoid输出，是正确的
-#22:50 2023/3/26 在test_copy 7.py尝试最后一个RGS的最后一个输出sigmoid，是正确的
-#23:00 2023/3/26 在test_copy_8.py尝试解决RGS后的第一个conv_sigmoid层，是正确的
-#23:04 2023/3/26 在test_copy_9.py尝试解决pixel_shuffle层，也是正确的
-#23:14 2023/3/26 在test_copy_10.py中尝试用输出最后一个conv_sigmoid的结果（也是整个模型的输出）。基本相同。小有差异
-#16:38 2023/3/27 在test_copy_11.py中查看卷积层的输出，很不一样。验算了一下，sigmoid功能是正常的
+
 
 a=4
 

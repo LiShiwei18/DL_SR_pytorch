@@ -4,30 +4,18 @@ import torch
 import torch.nn as nn
 import torch.fft
 import torch.nn.functional as F
-import tensorflow as tf
 
 first_time = True
 
 def fftshift2d(img, size_psc=128):
     bs,ch, h, w = img.shape
-    img = img.permute(0, 2, 3, 1)
-    fs11 = img[:, -h // 2:h, -w // 2:w, :]
-    fs12 = img[:, -h // 2:h, 0:w // 2, :]
-    fs21 = img[:, 0:h // 2, -w // 2:w, :]
-    fs22 = img[:, 0:h // 2, 0:w // 2, :]
-    output = torch.cat([torch.cat([fs11, fs21], axis=1), torch.cat([fs12, fs22], axis=1)], axis=2)
-    
-    # output = F.interpolate(output, size=(size_psc, size_psc), mode='bilinear', align_corners=True)
-    # # output = F.interpolate(output, size=(size_psc, size_psc), mode='bilinear')
-    #用tensorflow创建一个会话来resize
-    resized_output = tf.image.resize_images(output.detach().numpy(), (size_psc, size_psc), 0)
-    sess = tf.Session()
-    resized_image_np = sess.run(resized_output)
-    sess.close()
-
-    resized_image_np = torch.Tensor(resized_image_np)
-    resized_image_np = resized_image_np.permute(0, 3, 1, 2)
-    return resized_image_np
+    fs11 = img[:,:, h//2:, w//2:]
+    fs12 = img[:,:, h//2:, :w//2]
+    fs21 = img[:,:, :h//2, w//2:]
+    fs22 = img[:,:, :h//2, :w//2]
+    output = torch.cat([torch.cat([fs11, fs21], axis=2), torch.cat([fs12, fs22], axis=2)], axis=3)
+    output = F.interpolate(output, size=(size_psc, size_psc), mode='bilinear', align_corners=True)
+    return output
 
 
 class RCAB(nn.Module):
@@ -100,8 +88,8 @@ class DFCAN(nn.Module):
         self.conv_gelu=nn.Sequential(nn.Conv2d(64, 64*(scale ** 2), kernel_size=3, stride=1, padding=1),
                                        nn.GELU())
         self.pixel_shuffle = nn.PixelShuffle(scale)
-        self.conv_sigmoid=nn.Sequential(nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1),
-                                       nn.Sigmoid())
+        self.conv_sigmoid=nn.Sequential(nn.Conv2d(64, 1, kernel_size=3, stride=1, padding=1),)
+                                       #nn.Sigmoid())
 
     def forward(self,x):
         x=self.input(x)
