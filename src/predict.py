@@ -26,10 +26,12 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #实例化对象
 model = DFCAN(n_channel, scale, size_psc)
 model.load_state_dict(torch.load(weight_file))
+model.to(device)
 
 im_count = 0
 for img_path_file in tqdm(img_path):
-    img = np.array(imageio.imread(img_path_file).astype(np.float))
+    # img = np.array(imageio.imread(img_path_file).astype(np.float))    #17:20 2023/4/1 改成下列
+    img = np.array(imageio.imread(img_path_file).astype(np.float32))
     # img = img[np.newaxis, :, :, np.newaxis]   #16:19 2023/4/1 改成下列
     img = img[np.newaxis, np.newaxis, :, :]
 
@@ -38,7 +40,7 @@ for img_path_file in tqdm(img_path):
     img = torch.Tensor(img)
     img = img.to(device)
     with torch.no_grad():
-        pr = rm_outliers(prctile_norm(model(img)).squeeze().cpu().numpy())  #预测结果归一化，去除异常值
+        pr = rm_outliers(prctile_norm(model(img).squeeze().cpu().numpy()))  #预测结果归一化，去除异常值
 
     outName = img_path_file.replace(test_images_in_folder, test_images_out_folder)
     if not outName[-4:] == '.tif':
@@ -47,3 +49,5 @@ for img_path_file in tqdm(img_path):
     im_count = im_count + 1
     img.save(outName)
 
+#16:33 2023/4/1 再2080ti上cuda内存溢出。执行不了
+#cuda 版本不一致。似乎得重做环境了
