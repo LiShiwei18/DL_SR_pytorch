@@ -60,7 +60,4 @@ for img_path_file in tqdm(img_path):
     im_count = im_count + 1
     img.save(outName)
 
-#16:33 2023/4/1 在2080ti上cuda内存溢出。执行不了
-#cuda 版本不一致。似乎得重做环境了
-#17:40 2023/4/1 在A5000上能正常跑，但是效果不如原版DFCAN
 
