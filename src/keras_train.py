@@ -3,7 +3,7 @@ from keras import optimizers
 import matplotlib.pyplot as plt
 import numpy as np
 import datetime
-# from keras.callbacks import TensorBoard
+from keras.callbacks import TensorBoard
 import glob
 import os
 import tensorflow as tf
