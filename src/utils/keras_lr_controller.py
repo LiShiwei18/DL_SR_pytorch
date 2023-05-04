@@ -5,9 +5,7 @@ import warnings
 
 class ReduceLROnPlateau():
     def __init__(self, model, curmonitor=np.Inf, factor=0.1, patience=10, mode='min',
-                 min_delta=1e-4, cooldown=0, min_lr=0, verbose=1,
-                 **kwargs):
-
+        min_delta=1e-4, cooldown=0, min_lr=0, verbose=1,**kwargs):
         self.curmonitor = curmonitor
         if factor > 1.0:
             raise ValueError('ReduceLROnPlateau does not support a factor > 1.0.')
@@ -65,11 +63,10 @@ class ReduceLROnPlateau():
                         K.set_value(self.model.optimizer.lr, new_lr)
                         if self.verbose > 0:
                             print('\nEpoch %05d: ReduceLROnPlateau reducing '
-                                  'learning rate to %s.' % (epoch + 1, new_lr))
+                                'learning rate to %s.' % (epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
         return curlr
 
     def in_cooldown(self):
         return self.cooldown_counter > 0
-

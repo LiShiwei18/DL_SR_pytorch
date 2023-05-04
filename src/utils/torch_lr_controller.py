@@ -2,8 +2,8 @@ import warnings
 import torch
 
 class ReduceLROnPlateau():
-    def init(self, model, curmonitor=torch.Tensor([float("inf")]), factor=0.1, patience=10, mode='min',
-    min_delta=1e-4, cooldown=0, min_lr=0, verbose=1,**kwargs):
+    def __init__(self, model, curmonitor=torch.Tensor([float("inf")]), factor=0.1, patience=10, mode='min',
+        min_delta=1e-4, cooldown=0, min_lr=0, verbose=1,**kwargs):
         self.curmonitor = curmonitor
         if factor > 1.0:
             raise ValueError('ReduceLROnPlateau does not support a factor > 1.0.')
