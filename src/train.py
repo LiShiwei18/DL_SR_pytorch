@@ -99,7 +99,7 @@ g = modelFN(input_channels)
 g = g.to(device)  # assuming device is defined as the target device (e.g., "cuda" or "cpu")
 optimizer_g = optim.Adam(params=g.parameters(), lr=start_lr, betas=(0.9, 0.999))
 loss_fn = loss_mse_ssim  # assuming loss_mse_ssim is defined elsewhere
-lr_controller = ReduceLROnPlateau(model=g, factor=lr_decay_factor, patience=10, mode='min', min_delta=1e-4,
+lr_controller = ReduceLROnPlateau(optimizer=optimizer_g, factor=lr_decay_factor, patience=10, mode='min', min_delta=1e-4,
                                   cooldown=0, min_lr=start_lr * 0.1, verbose=True)
 
 # --------------------------------------------------------------------------------
@@ -166,7 +166,7 @@ def Validate(iter, sample=0):
             torch.save(g.state_dict(), save_weights_path + 'weights.pth')
 
         validate_nrmse.append(np.mean(nrmses))
-        curlr = lr_controller.on_epoch_end(iter, np.mean(nrmses))
+        curlr = lr_controller.on_epoch_end(iter, torch.from_numpy(np.array(np.mean(nrmses))))
         # write_log(callback, val_names[0], np.mean(mses), iter)
 
 # --------------------------------------------------------------------------------
