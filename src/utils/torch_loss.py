@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from ssim import SSIM
+from .ssim import SSIM
 
 
 def loss_mse_ssim(y_true, y_pred):
