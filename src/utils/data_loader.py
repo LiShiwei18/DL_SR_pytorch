@@ -3,6 +3,7 @@ import glob
 import cv2 as cv
 import imageio
 from .utils import prctile_norm
+np.random.seed(0)
 
 
 def data_loader(images_path, data_path, gt_path, height, width, batch_size, norm_flag=1, resize_flag=0, scale=2, bn=0):

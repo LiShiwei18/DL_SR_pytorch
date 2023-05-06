@@ -32,7 +32,7 @@ parser.add_argument("--sample_interval", type=int, default=1000)
 parser.add_argument("--validate_interval", type=int, default=2000)
 parser.add_argument("--validate_num", type=int, default=500)
 parser.add_argument("--batch_size", type=int, default=4)
-parser.add_argument("--start_lr", type=float, default=1e-4)
+parser.add_argument("--start_lr", type=float, default=1e-2)
 parser.add_argument("--lr_decay_factor", type=float, default=0.5)
 parser.add_argument("--load_weights", type=int, default=0)
 parser.add_argument("--optimizer_name", type=str, default="adam")
@@ -58,6 +58,8 @@ iterations = args.iterations
 # optimizer_name = args.optimizer_name
 model_name = args.model_name
 sample_interval = args.sample_interval
+
+torch.manual_seed(0)
 
 if torch.cuda.is_available():
     device = torch.device("cuda")          # 使用 GPU
@@ -203,7 +205,7 @@ for it in tqdm(range(iterations)):
     optimizer_g.step()
 
     elapsed_time = datetime.datetime.now() - start_time
-    print("%d iteration: time: %s, g_loss = %s" % (it + 1, elapsed_time, loss_generator.item()))
+    print("{} iteration: time: {}, g_loss = {}, lr = {}" .format(it + 1, elapsed_time, loss_generator.item(), optimizer_g.param_groups[0]['lr']))
 
     if (it + 1) % sample_interval == 0:
         images_path = glob.glob(train_images_path + '/*')
