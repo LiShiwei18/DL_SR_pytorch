@@ -10,11 +10,11 @@ def data_loader(images_path, data_path, gt_path, height, width, batch_size, norm
     image_batch = []
     gt_batch = []
     for path in batch_images_path:
-        img = imageio.imread(path).astype(np.float)
+        img = imageio.imread(path).astype(np.float32)
         if resize_flag == 1:
             img = cv.resize(img, (height*scale, width*scale))
         path_gt = path.replace(data_path, gt_path)
-        gt = imageio.imread(path_gt).astype(np.float)
+        gt = imageio.imread(path_gt).astype(np.float32)
         if norm_flag:
             img = prctile_norm(img)
             gt = prctile_norm(gt)
@@ -30,10 +30,10 @@ def data_loader(images_path, data_path, gt_path, height, width, batch_size, norm
         image_batch = (image_batch - 0.5) / 0.5
         gt_batch = (gt_batch - 0.5) / 0.5
     if resize_flag == 1:
-        image_batch = image_batch.reshape((batch_size, width*scale, height*scale, 1))
+        image_batch = image_batch.reshape((batch_size, 1, width*scale, height*scale))
     else:
-        image_batch = image_batch.reshape((batch_size, width, height, 1))
-    gt_batch = gt_batch.reshape((batch_size, width*scale, height*scale, 1))
+        image_batch = image_batch.reshape((batch_size, 1, width, height))
+    gt_batch = gt_batch.reshape((batch_size, 1, width*scale, height*scale))
 
     return image_batch, gt_batch
 
@@ -47,13 +47,13 @@ def data_loader_multi_channel(images_path, data_path, gt_path, height, width, ba
         img_path.sort()
         cur_img = []
         for cur in img_path:
-            img = imageio.imread(cur).astype(np.float)
+            img = imageio.imread(cur).astype(np.float32)
             if resize_flag == 1:
                 img = cv.resize(img, (height * scale, width * scale))
             cur_img.append(img)
 
         path_gt = path.replace(data_path, gt_path) + '.tif'
-        cur_gt = imageio.imread(path_gt).astype(np.float)
+        cur_gt = imageio.imread(path_gt).astype(np.float32)
 
         if norm_flag:
             cur_img = prctile_norm(np.array(cur_img))
