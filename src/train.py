@@ -5,10 +5,10 @@ import datetime
 import glob
 import os
 from models import DFCAN
-from utils.utils import img_comp
-from utils.torch_loss import loss_mse_ssim
 from utils.torch_lr_controller import ReduceLROnPlateau
 from utils.data_loader import data_loader, data_loader_multi_channel
+from utils.utils import img_comp
+from utils.torch_loss import loss_mse_ssim
 from tqdm import tqdm 
 import torch
 import torch.nn as nn
@@ -19,8 +19,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--gpu_id", type=int, default=0)
 parser.add_argument("--gpu_memory_fraction", type=float, default=0.8)
 parser.add_argument("--mixed_precision_training", type=int, default=1)
-parser.add_argument("--data_dir", type=str, default="/root/autodl-fs/Upload/Dataset/dataset/train/CCPs")
-parser.add_argument("--save_weights_dir", type=str, default="trained_models")
+parser.add_argument("--data_dir", type=str, default="/root/autodl-tmp/CCPs")
+parser.add_argument("--save_weights_dir", type=str, default="/root/autodl-tmp/trained_models")
 parser.add_argument("--model_name", type=str, default="DFCAN")
 parser.add_argument("--patch_height", type=int, default=128)
 parser.add_argument("--patch_width", type=int, default=128)
@@ -82,9 +82,9 @@ validate_gt_path = data_dir + '/validate_gt/'
 sample_path = save_weights_path + 'sampled_img/'
 
 if not os.path.exists(save_weights_path):
-    os.mkdir(save_weights_path)
+    os.makedirs(save_weights_path)
 if not os.path.exists(sample_path):
-    os.mkdir(sample_path)
+    os.makedirs(sample_path)
 
 # --------------------------------------------------------------------------------
 #                           select models and optimizer
@@ -95,7 +95,7 @@ modelFN = modelFns[model_name]
 # --------------------------------------------------------------------------------
 #                              define combined model
 # --------------------------------------------------------------------------------
-g = modelFN(input_channels, patch_height, patch_width)
+g = modelFN(input_channels)
 g = g.to(device)  # assuming device is defined as the target device (e.g., "cuda" or "cpu")
 optimizer_g = optim.Adam(params=g.parameters(), lr=start_lr, betas=(0.9, 0.999))
 loss_fn = loss_mse_ssim  # assuming loss_mse_ssim is defined elsewhere
@@ -132,9 +132,11 @@ def Validate(iter, sample=0):
         for path in validate_path:
             [img, gt] = cur_data_loader([path], validate_images_path, validate_gt_path, patch_height,
                                         patch_width, 1, norm_flag=norm_flag, scale=scale_factor)
-            output = g(torch.Tensor(img)).squeeze().detach().numpy()
+            # img = img.to(device)
+            # gt = gt.to(device)
+            output = g(torch.Tensor(img).to(device)).squeeze().detach().cpu().numpy()
             mses, nrmses, psnrs, ssims = img_comp(gt, output, mses, nrmses, psnrs, ssims)
-            img_show.append(np.squeeze(np.mean(img, 3)))
+            img_show.append(np.squeeze(np.mean(img, 1)))
             gt_show.append(np.squeeze(gt))
             output_show.append(output)
             # show some examples
@@ -155,13 +157,13 @@ def Validate(iter, sample=0):
         for path in validate_path:
             [img, gt] = cur_data_loader([path], validate_images_path, validate_gt_path, patch_height,
                                         patch_width, 1, norm_flag=norm_flag, scale=scale_factor)
-            output = g(torch.Tensor(img)).squeeze().detach().numpy()
+            output = g(torch.Tensor(img).to(device)).squeeze().detach().cpu().numpy()
             mses, nrmses, psnrs, ssims = img_comp(gt, output, mses, nrmses, psnrs, ssims)
 
         # if best, save weights.best
-        torch.save(g.state_dict(), save_weights_path + 'weights.latest')
+        torch.save(g.state_dict(), save_weights_path + 'weights.pth')
         if min(validate_nrmse) > np.mean(nrmses):
-            torch.save(g.state_dict(), save_weights_path + 'weights.best')
+            torch.save(g.state_dict(), save_weights_path + 'weights.pth')
 
         validate_nrmse.append(np.mean(nrmses))
         curlr = lr_controller.on_epoch_end(iter, np.mean(nrmses))
@@ -181,8 +183,8 @@ for it in tqdm(range(iterations)):
     # ------------------------------------
     input_g, gt_g = cur_data_loader(images_path, train_images_path, train_gt_path, patch_height, patch_width,
                                     batch_size, norm_flag=norm_flag, scale=scale_factor)
-    input_g = torch.from_numpy(input_g).float()
-    gt_g = torch.from_numpy(gt_g).float()
+    input_g = torch.from_numpy(input_g).float().to(device)
+    gt_g = torch.from_numpy(gt_g).float().to(device)
     
     # zero gradients
     optimizer_g.zero_grad()
@@ -212,4 +214,4 @@ for it in tqdm(range(iterations)):
         # write_log(callback, train_names, np.mean(loss_record), it + 1)
         loss_record = []
 
-    lr_controller.on_epoch_end()    #更新学习率
+    # lr_controller.on_epoch_end(iter, )    #更新学习率

@@ -1,10 +1,42 @@
 import numpy as np
+# from skimage.measure import compare_mse, compare_nrmse, compare_psnr, compare_ssim
+from skimage.metrics import mean_squared_error as mse
+from skimage.metrics import normalized_root_mse as nrmse
+from skimage.metrics import structural_similarity as ssim
+from skimage.metrics import peak_signal_noise_ratio as psnr
+
 
 def prctile_norm(x, min_prc=0, max_prc=100):
     y = (x-np.percentile(x, min_prc))/(np.percentile(x, max_prc)-np.percentile(x, min_prc)+1e-7)
     y[y > 1] = 1
     y[y < 0] = 0
     return y
+
+def img_comp(gt, pr, mses=None, nrmses=None, psnrs=None, ssims=None):
+    if ssims is None:
+        ssims = []
+    if psnrs is None:
+        psnrs = []
+    if nrmses is None:
+        nrmses = []
+    if mses is None:
+        mses = []
+    gt, pr = np.squeeze(gt), np.squeeze(pr)
+    gt = gt.astype(np.float32)
+    if gt.ndim == 2:
+        n = 1
+        gt = np.reshape(gt, (1, gt.shape[0], gt.shape[1]))
+        pr = np.reshape(pr, (1, pr.shape[0], pr.shape[1]))
+    else:
+        n = np.size(gt, 0)
+
+    for i in range(n):
+        mses.append(mse(prctile_norm(np.squeeze(gt[i])), prctile_norm(np.squeeze(pr[i]))))
+        nrmses.append(nrmse(prctile_norm(np.squeeze(gt[i])), prctile_norm(np.squeeze(pr[i]))))
+        # psnrs.append(psnr(prctile_norm(np.squeeze(gt[i])), prctile_norm(np.squeeze(pr[i])), 1))
+        psnrs.append(psnr(prctile_norm(np.squeeze(gt[i])), prctile_norm(np.squeeze(pr[i]))))
+        ssims.append(ssim(prctile_norm(np.squeeze(gt[i])), prctile_norm(np.squeeze(pr[i]))))
+    return mses, nrmses, psnrs, ssims
 
 def _diffxy(img, order=3):
     for _ in range(order):

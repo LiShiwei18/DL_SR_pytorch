@@ -32,3 +32,18 @@ def loss_mae_mse(y_true, y_pred):
     mse_loss = mse_para * K.mean(K.square(y - x))
 
     return mae_loss + mse_loss
+
+if __name__ == "__main__":
+    import torch
+    # Generate random tensors with torch.seed()
+    torch.manual_seed(42)
+    y_true = torch.rand(5, 3, 256, 256).permute(0,2,3,1).numpy()
+    y_pred = (torch.rand(5, 3, 256, 256)).permute(0,2,3,1).numpy()
+    # Call the loss_mse_ssim function with the random tensors
+    loss_model = loss_mse_ssim(y_true, y_pred)
+    sess = tf.Session()
+    loss = sess.run(loss_model)
+    sess.close()
+    print(loss)
+
+    # result : 0.265905
