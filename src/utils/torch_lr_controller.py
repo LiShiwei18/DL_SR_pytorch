@@ -2,7 +2,7 @@ import warnings
 import torch
 
 class ReduceLROnPlateau():
-    def __init__(self, model, curmonitor=torch.Tensor([float("inf")]), factor=0.1, patience=10, mode='min',
+    def __init__(self, optimizer, curmonitor=torch.Tensor([float("inf")]), factor=0.1, patience=10, mode='min',
         min_delta=1e-4, cooldown=0, min_lr=0, verbose=1,**kwargs):
         self.curmonitor = curmonitor
         if factor > 1.0:
@@ -17,7 +17,7 @@ class ReduceLROnPlateau():
         self.wait = 0
         self.best = 0
         self.mode = mode
-        self.model = model
+        self.optimizer = optimizer
         self.verbose = verbose
         self.monitor_op = None
         self._reset()
@@ -39,7 +39,7 @@ class ReduceLROnPlateau():
         self._reset()
 
     def on_epoch_end(self, epoch, curmonitor):
-        curlr = self.model.optimizer.param_groups[0]['lr']
+        curlr = self.optimizer.param_groups[0]['lr']
         self.curmonitor = curmonitor
         if self.curmonitor is None:
             warnings.warn('errro input of monitor', RuntimeWarning)
@@ -54,11 +54,11 @@ class ReduceLROnPlateau():
             elif not self.in_cooldown():
                 self.wait += 1
                 if self.wait >= self.patience:
-                    old_lr = self.model.optimizer.param_groups[0]['lr']
+                    old_lr = self.optimizer.param_groups[0]['lr']
                     if old_lr > self.min_lr:
                         new_lr = old_lr * self.factor
                         new_lr = max(new_lr, self.min_lr)
-                        self.model.optimizer.param_groups[0]['lr'] = new_lr
+                        self.optimizer.param_groups[0]['lr'] = new_lr
                         if self.verbose > 0:
                             print('\nEpoch %05d: ReduceLROnPlateau reducing '
                                 'learning rate to %s.' % (epoch + 1, new_lr))

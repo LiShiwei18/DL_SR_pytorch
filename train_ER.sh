@@ -1,0 +1,1 @@
+python src/train.py --data_dir dataset/train/ER  --start_lr 1e-4

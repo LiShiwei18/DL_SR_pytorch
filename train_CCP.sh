@@ -1,0 +1,1 @@
+python src/train.py --data_dir dataset/train/CCPs --start_lr 1e-4 --trained_model_path trained_models/DFCAN-SISR_ER/weights.pth --sample_interval 100

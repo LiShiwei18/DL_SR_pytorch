@@ -19,8 +19,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--gpu_id", type=int, default=0)
 parser.add_argument("--gpu_memory_fraction", type=float, default=0.8)
 parser.add_argument("--mixed_precision_training", type=int, default=1)
-parser.add_argument("--data_dir", type=str, default="/root/autodl-tmp/CCPs")
-parser.add_argument("--save_weights_dir", type=str, default="/root/autodl-tmp/trained_models")
+# parser.add_argument("--data_dir", type=str, default="dataset/train/CCPs")
+parser.add_argument("--data_dir", type=str) #没有缺省值了
+parser.add_argument("--save_weights_dir", type=str, default="trained_models")
 parser.add_argument("--model_name", type=str, default="DFCAN")
 parser.add_argument("--patch_height", type=int, default=128)
 parser.add_argument("--patch_width", type=int, default=128)
@@ -32,10 +33,12 @@ parser.add_argument("--sample_interval", type=int, default=1000)
 parser.add_argument("--validate_interval", type=int, default=2000)
 parser.add_argument("--validate_num", type=int, default=500)
 parser.add_argument("--batch_size", type=int, default=4)
-parser.add_argument("--start_lr", type=float, default=1e-4)
+parser.add_argument("--start_lr", type=float, default=1e-3)
 parser.add_argument("--lr_decay_factor", type=float, default=0.5)
-parser.add_argument("--load_weights", type=int, default=0)
+parser.add_argument("--load_weights", type=int, default=1)
 parser.add_argument("--optimizer_name", type=str, default="adam")
+parser.add_argument("--start_iter", type=int, default=0)   #开始训练迭代周期
+parser.add_argument("--trained_model_path", type=str, default=0)    #是否指定训练模型路径   
 
 args = parser.parse_args()
 gpu_id = str(args.gpu_id)
@@ -54,10 +57,14 @@ scale_factor = args.scale_factor
 norm_flag = args.norm_flag
 validate_num = args.validate_num
 iterations = args.iterations
-# load_weights = args.load_weights
+load_weights = args.load_weights
 # optimizer_name = args.optimizer_name
 model_name = args.model_name
 sample_interval = args.sample_interval
+start_iter = args.start_iter
+trained_model_path = args.trained_model_path
+
+torch.manual_seed(0)
 
 if torch.cuda.is_available():
     device = torch.device("cuda")          # 使用 GPU
@@ -99,7 +106,7 @@ g = modelFN(input_channels)
 g = g.to(device)  # assuming device is defined as the target device (e.g., "cuda" or "cpu")
 optimizer_g = optim.Adam(params=g.parameters(), lr=start_lr, betas=(0.9, 0.999))
 loss_fn = loss_mse_ssim  # assuming loss_mse_ssim is defined elsewhere
-lr_controller = ReduceLROnPlateau(model=g, factor=lr_decay_factor, patience=10, mode='min', min_delta=1e-4,
+lr_controller = ReduceLROnPlateau(optimizer=optimizer_g, factor=lr_decay_factor, patience=10, mode='min', min_delta=1e-4,
                                   cooldown=0, min_lr=start_lr * 0.1, verbose=True)
 
 # --------------------------------------------------------------------------------
@@ -166,9 +173,18 @@ def Validate(iter, sample=0):
             torch.save(g.state_dict(), save_weights_path + 'weights.pth')
 
         validate_nrmse.append(np.mean(nrmses))
-        curlr = lr_controller.on_epoch_end(iter, np.mean(nrmses))
+        curlr = lr_controller.on_epoch_end(iter, torch.from_numpy(np.array(np.mean(nrmses))))
         # write_log(callback, val_names[0], np.mean(mses), iter)
 
+# 加载模型
+if load_weights:
+    if os.path.exists(save_weights_path + 'weights.pth'):
+        g.load_state_dict(torch.load(save_weights_path + 'weights.pth'))
+        print('Loading weights successfully: ' + save_weights_path + 'weights.pth')
+if trained_model_path:
+    if os.path.exists(trained_model_path):
+        g.load_state_dict(torch.load(trained_model_path))
+        print('从指定路径加载：' + trained_model_path)
 # --------------------------------------------------------------------------------
 #                                    training
 # --------------------------------------------------------------------------------
@@ -177,7 +193,7 @@ loss_record = []
 validate_nrmse = [np.Inf]
 lr_controller.on_train_begin()
 images_path = glob.glob(train_images_path + '/*')
-for it in tqdm(range(iterations)):
+for it in tqdm(range(start_iter, iterations), initial=start_iter, total=iterations):
     # ------------------------------------
     #         train generator
     # ------------------------------------
@@ -203,7 +219,7 @@ for it in tqdm(range(iterations)):
     optimizer_g.step()
 
     elapsed_time = datetime.datetime.now() - start_time
-    print("%d iteration: time: %s, g_loss = %s" % (it + 1, elapsed_time, loss_generator.item()))
+    print("{} iteration: time: {}, g_loss = {}, lr = {}" .format(it + 1, elapsed_time, loss_generator.item(), optimizer_g.param_groups[0]['lr']))
 
     if (it + 1) % sample_interval == 0:
         images_path = glob.glob(train_images_path + '/*')

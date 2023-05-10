@@ -10,11 +10,11 @@ def loss_mse_ssim(y_true, y_pred):
     # normalization
     x = y_true
     y = y_pred
-    x = (x - torch.min(x)) / (torch.max(x) - torch.min(x))
-    y = (y - torch.min(y)) / (torch.max(y) - torch.min(y))
+    norm_x = (x - torch.min(x)) / (torch.max(x) - torch.min(x) + 1e-9)
+    norm_y = (y - torch.min(y)) / (torch.max(y) - torch.min(y) + 1e-9)
     ssim = SSIM()
-    ssim_loss = ssim_para * (1 - ssim(x, y))
-    mse_loss = mse_para * F.mse_loss(y, x)
+    ssim_loss = ssim_para * (1 - ssim(norm_x, norm_y))
+    mse_loss = mse_para * F.mse_loss(norm_y, norm_x)
 
     return mse_loss + ssim_loss
 
