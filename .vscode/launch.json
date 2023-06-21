@@ -20,6 +20,15 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": ["--data_dir", "dataset/train/CCPs", "--start_lr", "1e-4", "--trained_model_path", "trained_models/DFCAN-SISR_ER/weights.pth"]
+        },
+        {
+            "name": "Python: ER",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["--data_dir", "dataset/train/ER", "--start_lr", "1e-4"]
         }
     ]
 }
